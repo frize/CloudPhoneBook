@@ -86,7 +86,12 @@ namespace IsisNode
                         List<Contact> cache = searcher.search(searchString, index, nbLines);
                         contacts.AddRange(cache);
                     }
-                    byte[] msg = ObjectToByteArray(contacts.GetRange(0, 100));
+                    List<Contact> result = contacts;
+                    if (contacts.Count > 100)
+                    {
+                        result = contacts.GetRange(0, 100);
+                    }
+                    byte[] msg = ObjectToByteArray(result);
                     byte[] msgSize = System.Text.Encoding.ASCII.GetBytes(msg.Length + "");
                     stream.Write(msgSize, 0, msgSize.Length);
                     stream.Write(msg, 0, msg.Length);
