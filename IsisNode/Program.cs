@@ -37,12 +37,17 @@ namespace IsisNode
             return obj;
         }
 
+        private static void Log(string msg)
+        {
+            Console.WriteLine("{0:HH:mm:ss.ff} --- {1}", DateTime.Now, msg);
+        }
+
         public static void HandleClient(object obj)
         {
             // retrieve client from parameter passed to thread
             TcpClient client = (TcpClient)obj;
 
-            Console.WriteLine("New Client Connected");
+            Log("New Client Connected");
 
             String data = null;
             // Buffer for reading data
@@ -57,7 +62,7 @@ namespace IsisNode
             {
                 // Translate data bytes to a ASCII string.
                 data = System.Text.Encoding.ASCII.GetString(bytes, 0, i);
-                Console.WriteLine("Received Search Request: {0}", data);
+                Log(string.Format("Received Search Request: {0}", data));
 
                 // Process the data sent by the client.
                 String searchString = data;
@@ -85,7 +90,7 @@ namespace IsisNode
                     byte[] msgSize = System.Text.Encoding.ASCII.GetBytes(msg.Length + "");
                     stream.Write(msgSize, 0, msgSize.Length);
                     stream.Write(msg, 0, msg.Length);
-                    Console.WriteLine("Sent Result: {0}", contacts.Count);
+                    Log(string.Format("Sent Result of \"{1}\": {0}", contacts.Count, searchString));
                 }
                 else
                 {
@@ -115,7 +120,7 @@ namespace IsisNode
 
                 // Start listening for client requests.
                 server.Start();
-                Console.WriteLine("Server started");
+                Log("Server started");
 
                 // Enter the listening loop.
                 while (true)
@@ -133,7 +138,7 @@ namespace IsisNode
             }
             catch (SocketException e)
             {
-                Console.WriteLine("SocketException: {0}", e);
+                Log(string.Format("SocketException: {0}", e));
             }
             finally
             {
@@ -142,7 +147,7 @@ namespace IsisNode
             }
 
 
-            Console.WriteLine("\nHit enter to continue...");
+            Log("\nHit enter to continue...");
             Console.Read();
         }
     }
