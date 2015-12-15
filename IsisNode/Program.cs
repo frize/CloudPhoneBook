@@ -77,11 +77,14 @@ namespace IsisNode
                 lock (serverLocker)
                 {
                     //if this is Master --> start the server to receive request
-                    if (myRank == MASTER_RANK && (serverThread == null || !serverThread.IsAlive))
+                    if (myRank == MASTER_RANK)
                     {
-                        Log("I'm the Master!");
-                        serverThread = new Thread(new ParameterizedThreadStart(startServer));
-                        serverThread.Start();
+                        if (serverThread == null || !serverThread.IsAlive)
+                        {
+                            Log("I'm the Master!");
+                            serverThread = new Thread(new ParameterizedThreadStart(startServer));
+                            serverThread.Start();
+                        }
                     }
                     else
                     {
@@ -94,6 +97,7 @@ namespace IsisNode
             };
             g.Handlers[SEARCH] += (Action<QueryMessage>)delegate(QueryMessage queryMsg)
             {
+                Log(string.Format("Received search request from Master: {0}", queryMsg.query));
                 bool isFinalNode = (myRank == queryMsg.nbNodes);
                 int nbContacts = Int32.Parse(File.ReadLines(Searcher.dbFileName).Skip(0).Take(1).ElementAt(0));
                 int nbLines = nbContacts / queryMsg.nbNodes;
@@ -105,6 +109,7 @@ namespace IsisNode
                 Searcher searcher = new Searcher();
                 List<Contact> localResult = searcher.search(queryMsg.query, startIndex, nbLines);
                 g.Reply(localResult);
+                Log(string.Format("Returned result for {0}", queryMsg.query));
             };
             g.Join();
             Log(string.Format("Joined with Rank {0}", myRank));
