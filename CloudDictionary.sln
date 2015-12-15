@@ -7,8 +7,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudDictionary", "CloudDic
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IsisNode", "IsisNode\IsisNode.csproj", "{AAFD8BDF-D34A-4723-AA32-56272EFCF742}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Models", "Models\Models.csproj", "{DEE77BC6-924D-4185-8026-A12B5553AACB}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,10 +21,6 @@ Global
 		{AAFD8BDF-D34A-4723-AA32-56272EFCF742}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AAFD8BDF-D34A-4723-AA32-56272EFCF742}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AAFD8BDF-D34A-4723-AA32-56272EFCF742}.Release|Any CPU.Build.0 = Release|Any CPU
-		{DEE77BC6-924D-4185-8026-A12B5553AACB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{DEE77BC6-924D-4185-8026-A12B5553AACB}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{DEE77BC6-924D-4185-8026-A12B5553AACB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{DEE77BC6-924D-4185-8026-A12B5553AACB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

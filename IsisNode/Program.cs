@@ -3,18 +3,19 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Models;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading;
+using Models;
+using Vsync;
+using System.Diagnostics;
 
 namespace IsisNode
 {
     class Program
     {
-
         // Convert an object to a byte array
         private static byte[] ObjectToByteArray(Object obj)
         {
@@ -40,6 +41,75 @@ namespace IsisNode
         private static void Log(string msg)
         {
             Console.WriteLine("{0:HH:mm:ss.ff} --- {1}", DateTime.Now, msg);
+        }
+
+        public static string GroupIdentifier = "Search";
+        static TcpListener server = null;
+        static Thread serverThread = null;
+        public static readonly object serverLocker = new object();
+        static Vsync.Group g;
+        static int nbNodes;
+
+        public const int SEARCH = 0;
+
+        [Vsync.AutoMarshalled]
+        public class QueryMessage
+        {
+            public string query;
+            public int nbNodes;
+        }
+
+        static void Main(string[] args)
+        {
+            int MASTER_RANK = 0; //the first one enter is master
+            Log("Start Vsync System");
+            Vsync.VsyncSystem.Start();
+            Vsync.Msg.RegisterType(typeof(QueryMessage), 0);
+            Vsync.Msg.RegisterType(typeof(Contact), 1);
+            g = new Vsync.Group(GroupIdentifier);
+            int myRank = 0;
+            g.ViewHandlers += (Vsync.ViewHandler)delegate(Vsync.View view)
+            {
+                //there is changes in View
+                Vsync.VsyncSystem.WriteLine("New view: " + view);
+                myRank = view.GetMyRank();
+                nbNodes = view.members.Length;
+                lock (serverLocker)
+                {
+                    //if this is Master --> start the server to receive request
+                    if (myRank == MASTER_RANK && (serverThread == null || !serverThread.IsAlive))
+                    {
+                        Log("I'm the Master!");
+                        serverThread = new Thread(new ParameterizedThreadStart(startServer));
+                        serverThread.Start();
+                    }
+                    else
+                    {
+                        if (serverThread != null && serverThread.IsAlive)
+                        {
+                            server.Stop();
+                        }
+                    }
+                }
+            };
+            g.Handlers[SEARCH] += (Action<QueryMessage>)delegate(QueryMessage queryMsg)
+            {
+                bool isFinalNode = (myRank == queryMsg.nbNodes);
+                int nbContacts = Int32.Parse(File.ReadLines(Searcher.dbFileName).Skip(0).Take(1).ElementAt(0));
+                int nbLines = nbContacts / queryMsg.nbNodes;
+                int startIndex = nbLines * myRank;
+                if (!isFinalNode)
+                {
+                    nbLines = nbContacts - startIndex;
+                }
+                Searcher searcher = new Searcher();
+                List<Contact> localResult = searcher.search(queryMsg.query, startIndex, nbLines);
+                g.Reply(localResult);
+            };
+            g.Join();
+            Log(string.Format("Joined with Rank {0}", myRank));
+            Vsync.VsyncSystem.WaitForever();
+            Console.ReadLine();
         }
 
         public static void HandleClient(object obj)
@@ -69,33 +139,27 @@ namespace IsisNode
 
                 if (File.Exists(Searcher.dbFileName))
                 {
+                    List<List<Contact>> answers = new List<List<Contact>>();
+                    QueryMessage queryMsg = new QueryMessage();
+                    queryMsg.query = searchString;
+                    queryMsg.nbNodes = nbNodes;
+                    Stopwatch stopwatch = Stopwatch.StartNew();
+                    g.OrderedQuery(Vsync.Group.ALL, new Vsync.Timeout(120000, Vsync.Timeout.TO_ABORTREPLY), SEARCH, queryMsg, new Vsync.EOLMarker(), answers);
+                    stopwatch.Stop();
                     List<Contact> contacts = new List<Contact>();
-                    int nbContacts = Int32.Parse(File.ReadLines(Searcher.dbFileName).Skip(0).Take(1).ElementAt(0));
-                    int nbClusters = 10;
-                    int szClusters = nbContacts / nbClusters;
-
-                    for (int cl = 0; cl < nbClusters; cl++)
+                    for (int ans = 0; ans < answers.Count; ans++)
                     {
-                        int index = cl * szClusters;
-                        int nbLines = szClusters;
-                        if (cl == nbClusters - 1)
-                        {
-                            nbLines = nbClusters - index;
-                        }
-                        Searcher searcher = new Searcher();
-                        List<Contact> cache = searcher.search(searchString, index, nbLines);
-                        contacts.AddRange(cache);
+                        contacts.AddRange(answers[ans]);
                     }
-                    List<Contact> result = contacts;
                     if (contacts.Count > 100)
                     {
-                        result = contacts.GetRange(0, 100);
+                        contacts = contacts.GetRange(0, 100);
                     }
-                    byte[] msg = ObjectToByteArray(result);
+                    byte[] msg = ObjectToByteArray(contacts);
                     byte[] msgSize = System.Text.Encoding.ASCII.GetBytes(msg.Length + "");
                     stream.Write(msgSize, 0, msgSize.Length);
                     stream.Write(msg, 0, msg.Length);
-                    Log(string.Format("Sent Result of \"{1}\": {0}", contacts.Count, searchString));
+                    Log(string.Format("Sent Result of \"{1}\": {0} - Search Completed In {2} (ms)", contacts.Count, searchString, stopwatch.ElapsedMilliseconds));
                 }
                 else
                 {
@@ -108,12 +172,9 @@ namespace IsisNode
             // Shutdown and end connection
             client.Close();
         }
-        
-        static void Main(string[] args)
-        {
-            Contact.GenerateContactFile(Searcher.dbFileName);
 
-            TcpListener server = null;
+        static void startServer(object obj)
+        {
             try
             {
                 // Set the TcpListener on port 13000.
@@ -138,12 +199,13 @@ namespace IsisNode
                     // client found.
                     // create a thread to handle communication
                     Thread t = new Thread(new ParameterizedThreadStart(HandleClient));
-                    t.Start(newClient);  
+                    t.Start(newClient);
                 }
             }
             catch (SocketException e)
             {
                 Log(string.Format("SocketException: {0}", e));
+                Console.ReadLine();
             }
             finally
             {
@@ -152,8 +214,8 @@ namespace IsisNode
             }
 
 
-            Log("\nHit enter to continue...");
-            Console.Read();
+            Log("Server Stop");
+
         }
     }
 }

@@ -110,9 +110,9 @@
     <Folder Include="Models\" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Models\Models.csproj">
-      <Project>{dee77bc6-924d-4185-8026-a12b5553aacb}</Project>
-      <Name>Models</Name>
+    <ProjectReference Include="..\IsisNode\IsisNode.csproj">
+      <Project>{aafd8bdf-d34a-4723-aa32-56272efcf742}</Project>
+      <Name>IsisNode</Name>
     </ProjectReference>
   </ItemGroup>
   <PropertyGroup>
