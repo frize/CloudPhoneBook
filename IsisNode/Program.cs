@@ -61,6 +61,7 @@ namespace IsisNode
 
         static void Main(string[] args)
         {
+            Searcher.cacheList();
             int MASTER_RANK = 0; //the first one enter is master
             Log("Start Vsync System");
             Vsync.VsyncSystem.Start();
@@ -72,6 +73,8 @@ namespace IsisNode
             {
                 //there is changes in View
                 Vsync.VsyncSystem.WriteLine("New view: " + view);
+                int oldRank = myRank;
+                int oldNbNodes = nbNodes;
                 myRank = view.GetMyRank();
                 nbNodes = view.members.Length;
                 lock (serverLocker)
@@ -131,52 +134,51 @@ namespace IsisNode
             // Get a stream object for reading and writing
             NetworkStream stream = client.GetStream();
 
-            int i;
+            int i = stream.Read(bytes, 0, bytes.Length);
             // Loop to receive all the data sent by the client.
-            while ((i = stream.Read(bytes, 0, bytes.Length)) != 0)
+
+            // Translate data bytes to a ASCII string.
+            data = System.Text.Encoding.ASCII.GetString(bytes, 0, i);
+            Log(string.Format("Received Search Request: {0}", data));
+
+            // Process the data sent by the client.
+            String searchString = data;
+
+            if (File.Exists(Searcher.dbFileName))
             {
-                // Translate data bytes to a ASCII string.
-                data = System.Text.Encoding.ASCII.GetString(bytes, 0, i);
-                Log(string.Format("Received Search Request: {0}", data));
-
-                // Process the data sent by the client.
-                String searchString = data;
-
-                if (File.Exists(Searcher.dbFileName))
+                List<List<Contact>> answers = new List<List<Contact>>();
+                QueryMessage queryMsg = new QueryMessage();
+                queryMsg.query = searchString;
+                queryMsg.nbNodes = nbNodes;
+                Stopwatch stopwatch = Stopwatch.StartNew();
+                g.OrderedQuery(Vsync.Group.ALL, new Vsync.Timeout(120000, Vsync.Timeout.TO_ABORTREPLY), SEARCH, queryMsg, new Vsync.EOLMarker(), answers);
+                stopwatch.Stop();
+                List<Contact> contacts = new List<Contact>();
+                for (int ans = 0; ans < answers.Count; ans++)
                 {
-                    List<List<Contact>> answers = new List<List<Contact>>();
-                    QueryMessage queryMsg = new QueryMessage();
-                    queryMsg.query = searchString;
-                    queryMsg.nbNodes = nbNodes;
-                    Stopwatch stopwatch = Stopwatch.StartNew();
-                    g.OrderedQuery(Vsync.Group.ALL, new Vsync.Timeout(120000, Vsync.Timeout.TO_ABORTREPLY), SEARCH, queryMsg, new Vsync.EOLMarker(), answers);
-                    stopwatch.Stop();
-                    List<Contact> contacts = new List<Contact>();
-                    for (int ans = 0; ans < answers.Count; ans++)
-                    {
-                        contacts.AddRange(answers[ans]);
-                    }
-                    if (contacts.Count > 100)
-                    {
-                        contacts = contacts.GetRange(0, 100);
-                    }
-                    byte[] msg = ObjectToByteArray(contacts);
-                    byte[] msgSize = System.Text.Encoding.ASCII.GetBytes(msg.Length + "");
-                    stream.Write(msgSize, 0, msgSize.Length);
-                    stream.Write(msg, 0, msg.Length);
-                    Log(string.Format("Sent Result of \"{1}\": {0} - Search Completed In {2} (ms)", contacts.Count, searchString, stopwatch.ElapsedMilliseconds));
+                    contacts.AddRange(answers[ans]);
                 }
-                else
+                if (contacts.Count > 100)
                 {
-                    String Error = "Error: database not ready";
-                    byte[] msg = System.Text.Encoding.ASCII.GetBytes(Error);
-                    stream.Write(msg, 0, msg.Length);
+                    contacts = contacts.GetRange(0, 100);
                 }
+                byte[] msg = ObjectToByteArray(contacts);
+                byte[] msgSize = System.Text.Encoding.ASCII.GetBytes(msg.Length + "");
+                stream.Write(msgSize, 0, msgSize.Length);
+                stream.Write(msg, 0, msg.Length);
+                Log(string.Format("Sent Result of \"{1}\": {0} - Search Completed In {2} (ms)", contacts.Count, searchString, stopwatch.ElapsedMilliseconds));
+            }
+            else
+            {
+                String Error = "Error: database not ready";
+                byte[] msg = System.Text.Encoding.ASCII.GetBytes(Error);
+                stream.Write(msg, 0, msg.Length);
             }
 
             // Shutdown and end connection
             client.Close();
         }
+
 
         static void startServer(object obj)
         {

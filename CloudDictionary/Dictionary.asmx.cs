@@ -46,26 +46,6 @@ namespace CloudDictionary
 
         static string fileName = HttpContext.Current.Request.MapPath("PhoneBook.txt");
 
-        [WebMethod]
-        public void Initialize()
-        {
-            System.Diagnostics.Debug.WriteLine("Init data at: " + fileName);
-            if (!File.Exists(fileName))
-            { //if exist --> read data
-                //Random data --> save to file
-                StreamWriter sw = new StreamWriter(fileName);
-                int nbContacts = 10000000;
-                sw.WriteLine(nbContacts);
-                for (int i = 0; i < nbContacts; i++)
-                {
-                    Contact randomContact = new Contact();
-                    sw.WriteLine(randomContact.getString());
-                }
-                sw.Close();
-            }
-            System.Diagnostics.Debug.WriteLine("Data initialized");
-        }
-
          [WebMethod]
         public List<Contact> Search(string search)
         {
