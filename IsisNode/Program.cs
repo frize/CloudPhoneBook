@@ -101,12 +101,13 @@ namespace IsisNode
             g.Handlers[SEARCH] += (Action<QueryMessage>)delegate(QueryMessage queryMsg)
             {
                 Log(string.Format("Received search request from Master: {0}", queryMsg.query));
-                bool isFinalNode = (myRank == queryMsg.nbNodes);
+                bool isFinalNode = (myRank == queryMsg.nbNodes - 1);
                 int nbContacts = Int32.Parse(File.ReadLines(Searcher.dbFileName).Skip(0).Take(1).ElementAt(0));
                 int nbLines = nbContacts / queryMsg.nbNodes;
                 int startIndex = nbLines * myRank;
-                if (!isFinalNode)
+                if (isFinalNode)
                 {
+                    Console.WriteLine("Final Node");
                     nbLines = nbContacts - startIndex;
                 }
                 Searcher searcher = new Searcher();
@@ -205,57 +206,57 @@ namespace IsisNode
 
                     // client found.
                     // create a thread to handle communication
-                    //Thread t = new Thread(new ParameterizedThreadStart(HandleClient));
-                    //t.Start(newClient);
+                    Thread t = new Thread(new ParameterizedThreadStart(HandleClient));
+                    t.Start(newClient);
                     // retrieve client from parameter passed to thread
-                    TcpClient client = newClient;
+                    //TcpClient client = newClient;
 
-                    Log("New Client Connected");
+                    //Log("New Client Connected");
 
-                    String data = null;
-                    // Buffer for reading data
-                    Byte[] bytes = new Byte[256];
+                    //String data = null;
+                    //// Buffer for reading data
+                    //Byte[] bytes = new Byte[256];
 
-                    // Get a stream object for reading and writing
-                    NetworkStream stream = client.GetStream();
+                    //// Get a stream object for reading and writing
+                    //NetworkStream stream = client.GetStream();
 
-                    int i = stream.Read(bytes, 0, bytes.Length);
-                    // Loop to receive all the data sent by the client.
+                    //int i = stream.Read(bytes, 0, bytes.Length);
+                    //// Loop to receive all the data sent by the client.
 
-                    // Translate data bytes to a ASCII string.
-                    data = System.Text.Encoding.ASCII.GetString(bytes, 0, i);
-                    Log(string.Format("Received Search Request: {0}", data));
+                    //// Translate data bytes to a ASCII string.
+                    //data = System.Text.Encoding.ASCII.GetString(bytes, 0, i);
+                    //Log(string.Format("Received Search Request: {0}", data));
 
-                    // Process the data sent by the client.
-                    String searchString = data;
-                    Thread t = new Thread(delegate()
-                    {
-                        List<List<Contact>> answers = new List<List<Contact>>();
-                        QueryMessage queryMsg = new QueryMessage();
-                        queryMsg.query = searchString;
-                        queryMsg.nbNodes = nbNodes;
-                        Stopwatch stopwatch = Stopwatch.StartNew();
-                        g.OrderedQuery(Vsync.Group.ALL, new Vsync.Timeout(120000, Vsync.Timeout.TO_ABORTREPLY), SEARCH, queryMsg, new Vsync.EOLMarker(), answers);
-                        stopwatch.Stop();
-                        List<Contact> contacts = new List<Contact>();
-                        for (int ans = 0; ans < answers.Count; ans++)
-                        {
-                            contacts.AddRange(answers[ans]);
-                        }
-                        if (contacts.Count > 100)
-                        {
-                            contacts = contacts.GetRange(0, 100);
-                        }
-                        byte[] msg = ObjectToByteArray(contacts);
-                        byte[] msgSize = System.Text.Encoding.ASCII.GetBytes(msg.Length + "");
-                        stream.Write(msgSize, 0, msgSize.Length);
-                        stream.Write(msg, 0, msg.Length);
-                        Log(string.Format("Sent Result of \"{1}\": {0} - Search Completed In {2} (ms)", contacts.Count, searchString, stopwatch.ElapsedMilliseconds));
+                    //// Process the data sent by the client.
+                    //String searchString = data;
+                    //Thread t = new Thread(delegate()
+                    //{
+                    //    List<List<Contact>> answers = new List<List<Contact>>();
+                    //    QueryMessage queryMsg = new QueryMessage();
+                    //    queryMsg.query = searchString;
+                    //    queryMsg.nbNodes = nbNodes;
+                    //    Stopwatch stopwatch = Stopwatch.StartNew();
+                    //    g.OrderedQuery(Vsync.Group.ALL, new Vsync.Timeout(120000, Vsync.Timeout.TO_ABORTREPLY), SEARCH, queryMsg, new Vsync.EOLMarker(), answers);
+                    //    stopwatch.Stop();
+                    //    List<Contact> contacts = new List<Contact>();
+                    //    for (int ans = 0; ans < answers.Count; ans++)
+                    //    {
+                    //        contacts.AddRange(answers[ans]);
+                    //    }
+                    //    if (contacts.Count > 100)
+                    //    {
+                    //        contacts = contacts.GetRange(0, 100);
+                    //    }
+                    //    byte[] msg = ObjectToByteArray(contacts);
+                    //    byte[] msgSize = System.Text.Encoding.ASCII.GetBytes(msg.Length + "");
+                    //    stream.Write(msgSize, 0, msgSize.Length);
+                    //    stream.Write(msg, 0, msg.Length);
+                    //    Log(string.Format("Sent Result of \"{1}\": {0} - Search Completed In {2} (ms)", contacts.Count, searchString, stopwatch.ElapsedMilliseconds));
 
-                        // Shutdown and end connection
-                        //client.Close();
-                    });
-                    t.Start();
+                    //    // Shutdown and end connection
+                    //    //client.Close();
+                    //});
+                    //t.Start();
                 }
             }
             catch (SocketException e)
